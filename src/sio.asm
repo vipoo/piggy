@@ -11,8 +11,8 @@ SIO_RTSOFF	EQU	$E8
 SIO0A_BUF	EQU	$8000		;	SIO_BUFSZ,0	; RECEIVE RING BUFFER
 
 SIO_BUFSZ	EQU	255		; RECEIVE BUFFER SIZE
-BUFF_HIGH_MARK	EQU	199		; POINT TO TURN RTS OFF
-BUFF_LOW_MARK	EQU	SIO_BUFSZ / 4	; POINT TO TURN RTS ON
+BUFF_HIGH_MARK	EQU	240		; POINT TO TURN RTS OFF
+BUFF_LOW_MARK	EQU	128		; POINT TO TURN RTS ON
 
 _installSioHandler:
 	PUSH	IX
@@ -37,12 +37,11 @@ _installSioHandler:
 	LD	(sioCmdPortRef5), A
 	LD	(sioCmdPortRef6), A
 	LD	(sioCmdPortRef7), A
+	LD	(sioCmdPortRef8), A
 	LD	(sioCmdPortRef9), A
 	LD	(sioCmdPortRefA), A
 	LD	(sioCmdPortRefB), A
 	LD	(sioCmdPortRefC), A
-	LD	(sioCmdPortRefD), A
-	LD	(sioCmdPortRefE), A
 
 	DI
 	LD	C, A
@@ -102,14 +101,19 @@ SIO_INTRCV2a:
 	LD	(HL), A			; AND SAVE IT
 	CP	BUFF_HIGH_MARK			; BUFFER GETTING FULL?
 	JR	NZ, SIO_INTRCV2		; IF NOT, BYPASS CLEARING RTS
+
+	; RTS OFF
 	LD	A, 5			; RTS IS IN WR5
 	OUT	(0), A			; ADDRESS WR5
 sioCmdPortRef3:	EQU	$-1
 	LD	A, SIO_RTSOFF		; VALUE TO CLEAR RTS
 	OUT	(0), A			; DO IT
 sioCmdPortRef4:	EQU	$-1
+
+
+
 SIO_INTRCV2:
-	ld	hl, (sioHead)
+	LD	hl, (sioHead)
 	LD	(HL),B			; SAVE CHARACTER RECEIVED IN BUFFER AT HEAD
 	INC	L
 
@@ -158,14 +162,7 @@ sioIn2:
 	RET				; AND DONE
 
 sioIn3:
-	DI
-	LD	A, 5			; RTS IS IN WR5
-	OUT	(00), A			; ADDRESS WR5
-sioCmdPortRef7:	EQU	$-1
-	LD	A, SIO_RTSON		; VALUE TO SET RTS
-	OUT	(00), A			; DO IT
-sioCmdPortRef8:	EQU	$-1
-	EI
+	CALL	_sioRtsOn
 	JR	sioIn2
 
 
@@ -195,9 +192,9 @@ SIO_OST:
 	XOR	A			; WR0
 	DI
 	OUT	(0), A			; DO IT
-sioCmdPortRef9:	EQU	$-1
+sioCmdPortRef7:	EQU	$-1
 	IN	A, (0)			; GET STATUS
-sioCmdPortRefA:	EQU	$-1
+sioCmdPortRef8:	EQU	$-1
 	EI
 	AND	$04			; ISOLATE BIT 2 (TX EMPTY)
 	ret	Z			; NOT READY, RETURN VIA IDLE PROCESSING
@@ -206,21 +203,25 @@ sioCmdPortRefA:	EQU	$-1
 	RET				; DONE
 
 _sioRtsOff:
+	DI
 	LD	A, 5			; RTS IS IN WR5
 	OUT	(0), A			; ADDRESS WR5
-sioCmdPortRefB:	EQU	$-1
+sioCmdPortRef9:	EQU	$-1
 	LD	A, SIO_RTSOFF		; VALUE TO CLEAR RTS
 	OUT	(0), A			; DO IT
-sioCmdPortRefC:	EQU	$-1
+sioCmdPortRefA:	EQU	$-1
+	EI
 	RET
 
 _sioRtsOn:
+	DI
 	LD	A, 5			; RTS IS IN WR5
 	OUT	(0), A			; ADDRESS WR5
-sioCmdPortRefD:	EQU	$-1
+sioCmdPortRefB:	EQU	$-1
 	LD	A, SIO_RTSON		; VALUE TO SET RTS
 	OUT	(0), A			; DO IT
-sioCmdPortRefE:	EQU	$-1
+sioCmdPortRefC:	EQU	$-1
+	EI
 	RET
 
 _sioCfg:

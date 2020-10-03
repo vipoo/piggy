@@ -12,7 +12,6 @@ const { program } = pkg;
 const port = 'COM6'
 const baud = 115200 * 2
 
-// const fileData = Buffer.from("1234567890abcdef".repeat(60000/16));
 let fileData = undefined
 
 const SOH = 0x01
@@ -119,8 +118,6 @@ function dataSend(data) {
 }
 
 function main() {
-
-
   connection = new SerialPort(port, {
     baudRate: baud,
     dataBits: 8,
@@ -128,6 +125,7 @@ function main() {
     parity: 'none',
     rtscts: true
   })
+
 
   connection.on('data', data => {
     // console.log(data)

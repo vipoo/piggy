@@ -55,10 +55,7 @@ uint8_t readWritePacket() {
 
   if (chr == (uint16_t)SOH) {
     prepDma();
-
-    sioRtsOff();
     fWrite(&configFCB);
-    sioRtsOn();
 
     return true;
   }
@@ -178,7 +175,7 @@ void main(MainArguments *pargs) __z88dk_fastcall {
   uint8_t count = 0;
 
   while (readWritePacket()) {
-    if ((count++) % 16 == 0) {
+    if ((count++) % 64 == 0) {
       cioParams0.chr = '.';
       hbCioOut(&cioParams0);
     }
