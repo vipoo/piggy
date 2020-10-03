@@ -80,4 +80,4 @@ clean:
 .PHONY: format
 format: SHELL:=/bin/bash
 format:
-	find \( -name "*.c" -o -name "*.h" \) -exec echo "formating {}" \; -exec clang-format -i {} \;
+	@cd src && find \( -name "*.c" -o -name "*.h" \) -exec echo "formating {}" \; -exec clang-format -i {} \;
