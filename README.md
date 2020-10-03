@@ -3,7 +3,7 @@
 Piggy is an optimised serial file transfer protocol - custom built - to minimise the time it take to
 transmit a file from a PC to a RC2014 or RomWBW based Z80 computer.
 
-Its designed to run under CPM with HBIOS support.
+Its designed to run under CPM with HBIOS support, using the SIO/2 chip.
 
 ## How to
 
