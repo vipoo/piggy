@@ -6,48 +6,45 @@
 
 diskBuffer1:	EQU 	$8200
 
-
 _prepDma:
-	ld	b, 0x80
+	LD	B, 0x80
 
-	exx
-	ld	bc, diskBuffer1
-	ld	hl, (_checksum)
-	ld	d, 0
-	exx
+	EXX
+	LD	BC, diskBuffer1
+	LD	HL, (_checksum)
+	LD	D, 0
+	EXX
 
-l_prepDma_00103:
-	push	bc
-	call	_sioIn
-	pop	bc
+prepDma1:
+	PUSH	BC
+	CALL	_sioIn
+	POP	BC
 
 	XOR	A
 	OR	H
 	JR	NZ, prepDmaDataLoss
 
-l_prepDma_00102:
-	ld	a, l
-	exx
-	ld	e, a
-	add	hl, de
+	LD	A, L
+	EXX
+	LD	E, A
+	ADD	HL, DE
 
-	ld	(bc), a
-	inc	bc
-	exx
+	LD	(BC), A
+	INC	BC
+	EXX
 
-	djnz	l_prepDma_00103
+	DJNZ	prepDma1
 
-	exx
-	ld	(_checksum), hl
+	EXX
+	LD	(_checksum), HL
 
-l_prepDma_00106:
 	RET
 
 prepDmaDataLoss:
-	ld	de, _dataLossMessage
-	push	de
-	call	_xprintf
-	pop	af
+	LD	DE, _dataLossMessage
+	PUSH	DE
+	CALL	_xprintf
+	POP	AF
   	RET
 
 	SECTION IGNORE

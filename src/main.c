@@ -1,3 +1,4 @@
+#include "main.h"
 #include "cpm.h"
 #include "hbios.h"
 #include "sio.h"
@@ -6,34 +7,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SOH 0x01
-#define EOT 0x04
-#define ACK 0x06
-#define NAK 0x15
-#define ETB 0x17
-#define CAN 0x18
-
-void shutdown();
-
-const char pFileName[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-char pFileExtension[4] = {0, 0, 0, 0};
+static const char pFileName[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static char pFileExtension[4] = {0, 0, 0, 0};
 
 static hbCioParams cioParams0;
 static hbCioParams cioParams1;
-
-#define diskBuffer1 ((uint8_t *)0x8200)
-
+static hbSysGetBnkInfoParams bnkInfoParams;
 static FCB configFCB;
-
 static hbSysGetFunc sysParams;
+static int dotCount = 0;
 
 uint16_t checksum = 0;
 
-const char *dataLossMessage = "Data loss!!!!!!\r\n";
-
-extern void prepDma();
-
-static int dotCount = 0;
+const char *dataLossMessage = "Error: Data loss\r\n";
 
 void flushBuffer() {
   while (sioIst()) {
@@ -131,8 +117,6 @@ void sioOutString(const char *p) {
   }
 }
 
-static hbSysGetBnkInfoParams bnkInfoParams;
-
 void copySioConfig() {
   const uint8_t currentBankId = hbGetCurrentBank();
   hbSysGetBnkInfo(&bnkInfoParams);
@@ -167,7 +151,6 @@ void main(MainArguments *pargs) __z88dk_fastcall {
   hbdInstallCioOut(1);
 
   copySioConfig();
-  xprintf("%02X, %02X\r\n", sioCfg[3], sioCfg[4]);
 
   installSioHandler();
   flushBuffer();
