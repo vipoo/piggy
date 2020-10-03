@@ -33,6 +33,19 @@ let startTime
 
 let checksum
 
+let timeoutHandler
+function resetTimeout() {
+  clearTimeout(timeoutHandler)
+  timeoutHandler = setTimeout(() => {
+    console.log('Client timed out');
+    communicationMode = COMMAND_MODE
+  }, 2000)
+}
+
+function abortTimeout() {
+  clearTimeout(timeoutHandler)
+}
+
 function dispatchCommand(commandBuffer) {
   if(commandBuffer.startsWith('G ')) {
     dataPtr = 0
@@ -49,13 +62,14 @@ function dispatchCommand(commandBuffer) {
       return
     }
 
-
     fileData = fs.readFileSync(filePathName)
     checksum = 0
 
     console.log(`Sending file TEST.TXT, length ${fileData.length}`)
     startTime = process.hrtime()
     connection.write(new Uint8Array([ACK]))
+
+    resetTimeout()
 
     return
   }
@@ -92,7 +106,12 @@ function sendAPacket() {
 }
 
 function dataSend(data) {
-  if (data[0] === NAK && packetNumber === 0) {
+  for(const b of data)
+    dataSendByte(b)
+}
+
+function dataSendByte(b) {
+  if (b === NAK && packetNumber === 0) {
     console.log('Initiating data send');
 
     while(dataPtr <= fileData.length)
@@ -104,12 +123,19 @@ function dataSend(data) {
     return
   }
 
-  if (data[0] === ACK && packetNumber > 0) {
+  if (b === ACK && packetNumber > 0) {
+    process.stdout.write('.')
+    resetTimeout()
+    return
+  }
+
+  if (b === EOT && packetNumber > 0) {
     communicationMode = COMMAND_MODE
     const hrend = process.hrtime(startTime);
     const time = hrend[0] + hrend[1] / 1000000000.0
     console.info('\r\nTransmission Time: %ds %dms - rate of %d kB/s', hrend[0], hrend[1] / 1000000, fileData.length / 1024.0 / (time))
     console.log("Checksum", checksum & 0xFFFF)
+    abortTimeout()
     return
   }
 

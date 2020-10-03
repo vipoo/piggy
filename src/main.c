@@ -22,32 +22,12 @@ uint16_t checksum = 0;
 const char *dataLossMessage = "Error: Data loss\r\n";
 
 void flushBuffer() {
-  while (sioIst()) {
-    sioIn();
-  }
-}
-
-void waitForPacketHeader() {
-  cioParams1.chr = 0;
-
-  uint16_t count = 65000;
-  while (count++ > 0 && !sioIst()) {
-    for (int i = 1; i < 1000; i++)
-      ;
+  uint16_t x = 0;
+  while (x != 0xFF00) {
+    x = sioIn();
   }
 
-  if (!sioIst()) {
-    xprintf("Expectred SOH - but no data recieved\r\n");
-    shutdown();
-  }
-
-  const uint16_t x = sioIn();
-  cioParams1.chr = x;
-
-  if (x != (uint16_t)SOH) {
-    xprintf("Expected SOH but got %04X\r\n", x);
-    shutdown();
-  }
+  xprintf("Count = %d\r\n", sioCount);
 }
 
 uint8_t readWritePacket() {
@@ -57,6 +37,7 @@ uint8_t readWritePacket() {
     prepDma();
     fWrite(&configFCB);
 
+    sioOut(ACK);
     return true;
   }
 
@@ -181,7 +162,7 @@ void main(MainArguments *pargs) __z88dk_fastcall {
     }
   }
 
-  sioOut(ACK);
+  sioOut(EOT);
 
   xprintf("Checksum = %u\r\n", checksum);
 
