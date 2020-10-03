@@ -4,13 +4,11 @@ import path from 'path'
 import os from 'os'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
+import ora from 'ora'
 
 const { dirname }  = path
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const { program } = pkg;
-
-const port = 'COM6'
-const baud = 115200 * 2
 
 let fileData = undefined
 
@@ -32,12 +30,14 @@ let dataPtr = 0
 let startTime
 
 let checksum
+let fileName
+let spinner
 
 let timeoutHandler
 function resetTimeout() {
   clearTimeout(timeoutHandler)
   timeoutHandler = setTimeout(() => {
-    console.log('Client timed out');
+    spinner.fail('Client timed out');
     communicationMode = COMMAND_MODE
   }, 2000)
 }
@@ -52,7 +52,7 @@ function dispatchCommand(commandBuffer) {
     packetNumber = 0
     communicationMode = DATA_SEND_MODE
 
-    const fileName = commandBuffer.slice(2).trim()
+    fileName = commandBuffer.slice(2).trim()
     const filePathName = path.join(program.directory, fileName)
     if (!fs.existsSync(filePathName)) {
       connection.write(new Uint8Array([NAK]))
@@ -112,7 +112,7 @@ function dataSend(data) {
 
 function dataSendByte(b) {
   if (b === NAK && packetNumber === 0) {
-    console.log('Initiating data send');
+    spinner = ora(`Transmitting file ${fileName}`).start()
 
     while(dataPtr <= fileData.length)
       sendAPacket();
@@ -124,7 +124,6 @@ function dataSendByte(b) {
   }
 
   if (b === ACK && packetNumber > 0) {
-    process.stdout.write('.')
     resetTimeout()
     return
   }
@@ -133,8 +132,7 @@ function dataSendByte(b) {
     communicationMode = COMMAND_MODE
     const hrend = process.hrtime(startTime);
     const time = hrend[0] + hrend[1] / 1000000000.0
-    console.info('\r\nTransmission Time: %ds %dms - rate of %d kB/s', hrend[0], hrend[1] / 1000000, fileData.length / 1024.0 / (time))
-    console.log("Checksum", checksum & 0xFFFF)
+    spinner.succeed(`Transmission Time: ${hrend[0]}s ${hrend[1] / 1000000}ms - rate of ${(fileData.length / 1024.0 / (time)).toPrecision(4)} kB/s`)
     abortTimeout()
     return
   }
@@ -144,8 +142,9 @@ function dataSendByte(b) {
 }
 
 function main() {
-  connection = new SerialPort(port, {
-    baudRate: baud,
+  console.log(`Waiting for file transfer requests on PORT ${program.port} at baud rate ${program.baud} (8N1)`)
+  connection = new SerialPort(program.port, {
+    baudRate: program.baud,
     dataBits: 8,
     stopBits: 1,
     parity: 'none',
@@ -165,7 +164,9 @@ function main() {
 
 
 program
-  .option('-d, --directory <dir>', 'The working directory for files to transfer', 'cwd');
+  .option('-d, --directory <dir>', 'The working directory for files to transfer', 'cwd')
+  .requiredOption('-p, --port <port>', 'The serial port to monitor - eg: COM6')
+  .option('-b, --baud <rate>', 'The baud rate for serial comms', 115200 * 2)
 
 program.parse(process.argv);
 
