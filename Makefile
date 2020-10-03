@@ -1,9 +1,9 @@
 .PHONY: all
-all: getr test-samples
+all: pget test-samples
 
-.PHONY: getr
-getr:
-	@$(MAKE) -s ./bin/getr.com
+.PHONY: pget
+pget:
+	@$(MAKE) -s ./bin/pget.com
 
 .PHONY: test-samples
 test-samples:
@@ -46,10 +46,10 @@ include ./depends.d
 get_sources = $(wildcard ./src/*.c) $(wildcard ./src/*.asm)
 get_objects = ./src/memap.o ./relocmem.asm ./src/crt.o ./src/reloccrt.o ./src/cpm.o ./src/cpmasm.o ./src/hbios_cio.o ./src/hbios.o ./src/xstdio.o ./src/chartesters.o $(patsubst %.asm,%.o,$(patsubst %.c,%.o,$(get_sources)))
 
-./bin/getr.com: $(get_objects)
+./bin/pget.com: $(get_objects)
 	@mkdir -p ./bin
-	@$(RELOCASSEMBLER) -o./bin/getr.com -b $(ASS_FLAGS) ./src/memap.o $(filter-out ./src/memap.o,$^)
-	@echo "\nBuilt ./bin/getr.com"
+	@$(RELOCASSEMBLER) -o./bin/pget.com -b $(ASS_FLAGS) ./src/memap.o $(filter-out ./src/memap.o,$^)
+	@echo "\nBuilt ./bin/pget.com"
 
 #-DDIAGNOSTICS_ON
 %.asm: %.c

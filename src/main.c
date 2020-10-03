@@ -8,14 +8,10 @@
 #include <string.h>
 
 static const char pFileName[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-static char pFileExtension[4] = {0, 0, 0, 0};
+static const char pFileExtension[4] = {0, 0, 0, 0};
 
-static hbCioParams cioParams0;
-static hbCioParams cioParams1;
 static hbSysGetBnkInfoParams bnkInfoParams;
 static FCB configFCB;
-static hbSysGetFunc sysParams;
-static int dotCount = 0;
 
 uint16_t checksum = 0;
 
@@ -23,11 +19,23 @@ const char *dataLossMessage = "Error: Data loss\r\n";
 
 void flushBuffer() {
   uint16_t x = 0;
-  while (x != 0xFF00) {
+  while (x != 0xFF00)
     x = sioIn();
-  }
+}
 
-  xprintf("Count = %d\r\n", sioCount);
+void verifyChecksum() {
+  const uint8_t c1 = sioIn();
+  const uint8_t c2 = sioIn();
+  const uint16_t c = (((uint16_t)c2) << 8) + (uint16_t)c1;
+
+  if (c != checksum)
+    print("\r\nData integrity check failed.\r\n");
+  else
+    print("\r\nDone\r\n");
+}
+
+void logPacketError(uint16_t chr) {
+  xprintf("Error: Expected a SOH %04X, %d, %d.\r\n", chr, dataLoss, sioCount);
 }
 
 uint8_t readWritePacket() {
@@ -42,22 +50,11 @@ uint8_t readWritePacket() {
   }
 
   if (chr == (uint16_t)EOT) {
-
-    const uint8_t c1 = sioIn();
-    const uint8_t c2 = sioIn();
-
-    const uint16_t c = (((uint16_t)c2) << 8) + (uint16_t)c1;
-
-    if (c != checksum) {
-      print("Data integrity check failed.\r\n");
-      return false;
-    }
-
-    print("\r\nDone\r\n");
+    verifyChecksum();
     return false;
   }
 
-  xprintf("Error: Expected a SOH %04X, %d, %d.\r\n", chr, dataLoss, sioCount);
+  logPacketError(chr);
   return false;
 }
 
@@ -103,10 +100,7 @@ void copySioConfig() {
   hbSetCurrentBank(currentBankId);
 }
 
-void main(MainArguments *pargs) __z88dk_fastcall {
-  cioParams0.driver = 0;
-  cioParams1.driver = 1;
-
+void parseCommandLine(MainArguments *pargs) __z88dk_fastcall {
   if (pargs->argc != 1) {
     print("\r\nUsage: getr <filename>\r\n\r\nOptions:  <filename> is name of file on remote system to download\r\n\r\n");
     exit(1);
@@ -117,34 +111,52 @@ void main(MainArguments *pargs) __z88dk_fastcall {
     print("Bad filename.\r\n");
     exit(1);
   }
+
   strcpy(pFileName, token);
   token = strtok(NULL, ".");
   if (token == NULL || token[0] == 0 || strlen(token) > 3) {
     print("Bad filename.\r\n");
     exit(1);
   }
-  strcpy(pFileExtension, token);
 
+  strcpy(pFileExtension, token);
+}
+
+void initialiseCioAndSio() {
   hbdInstallCioIn(1);
   hbdInstallCioOut(1);
-
   copySioConfig();
-
   installSioHandler();
-  flushBuffer();
+}
 
+void issueGetCommand() {
   sioOutString("G ");
   sioOutString(pFileName);
-  sioOutString(".");
+  sioOut('.');
   sioOutString(pFileExtension);
   sioOutString("\r\n");
 
   expectAck();
+}
 
+void configureFileForWriting() {
   resetFCB(pFileName, pFileExtension, &configFCB);
   fDelete(&configFCB);
-  uint8_t exists = fMake(&configFCB);
+  fMake(&configFCB);
   fDmaOff(diskBuffer1);
+}
+
+void main(MainArguments *pargs) __z88dk_fastcall {
+  parseCommandLine(pargs);
+
+  initialiseCioAndSio();
+
+  flushBuffer();
+
+  issueGetCommand();
+
+  configureFileForWriting();
+
   print("Downloading: ");
   print(pFileName);
   print(".");
@@ -152,19 +164,13 @@ void main(MainArguments *pargs) __z88dk_fastcall {
   print("\r\n");
 
   sioOut(NAK);
-
   uint8_t count = 0;
-
   while (readWritePacket()) {
     if ((count++) % 64 == 0) {
-      cioParams0.chr = '.';
-      hbCioOut(&cioParams0);
+      print(".");
     }
   }
-
   sioOut(EOT);
-
-  xprintf("Checksum = %u\r\n", checksum);
 
   fClose(&configFCB);
 
