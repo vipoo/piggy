@@ -10,8 +10,11 @@
 static const char pFileName[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 static const char pFileExtension[4] = {0, 0, 0, 0};
 
+uint8_t tmsCfg[14];
+
 static hbSysGetBnkInfoParams bnkInfoParams;
 static FCB configFCB;
+static uint8_t currentBankId;
 
 uint16_t checksum = 0;
 
@@ -34,9 +37,7 @@ void verifyChecksum() {
     print("\r\nDone\r\n");
 }
 
-void logPacketError(uint16_t chr) {
-  xprintf("Error: Expected a SOH %04X, %d, %d.\r\n", chr, dataLoss, sioCount);
-}
+void logPacketError(uint16_t chr) { xprintf("Error: Expected a SOH %04X, %d, %d.\r\n", chr, dataLoss, sioCount); }
 
 uint8_t readWritePacket() {
   const uint16_t chr = sioIn();
@@ -55,6 +56,7 @@ uint8_t readWritePacket() {
   }
 
   logPacketError(chr);
+  shutdown();
   return false;
 }
 
@@ -93,8 +95,6 @@ void sioOutString(const char *p) {
 }
 
 void copySioConfig() {
-  const uint8_t currentBankId = hbGetCurrentBank();
-  hbSysGetBnkInfo(&bnkInfoParams);
   hbSetCurrentBank(bnkInfoParams.biosBankId);
   memcpy(&sioCfg, hbdCioIn_data, 15);
   hbSetCurrentBank(currentBankId);
@@ -146,10 +146,75 @@ void configureFileForWriting() {
   fDmaOff(diskBuffer1);
 }
 
+static hbSysGetFunc vdaParams;
+static hbVdaDevParams vdaDev;
+#define TMSINTEN 5
+
+void disableTmsInterupts() {
+  vdaDev.driver = 0;
+  hbVdaDev(&vdaDev);
+  if (vdaDev.devType != VDADEV_TMS)
+    return;
+
+  vdaParams.driver = 0;
+  vdaParams.functionCode = BF_VDAQRY;
+  uint8_t x = hbSysGetVdaFn(&vdaParams);
+  hbSetCurrentBank(bnkInfoParams.biosBankId);
+  memcpy(tmsCfg, vdaParams.driverDataAddress, 14);
+  hbSetCurrentBank(currentBankId);
+
+  print("Pausing TMS interrupts\r\n");
+  // clang-format off
+  __asm
+	  LD    A, (_tmsCfg + 7)
+    RES	  TMSINTEN, A             ; // RESET INTERRUPT ENABLE BIT
+	  LD	  (_tmsCfg + 7), A
+
+    LD    A, (_tmsCfg + 5)
+    OUT   (C), A
+
+	  NOP
+    NOP
+
+    LD	  A, $81                    ; // SELECT REGISTER 1
+	  OUT	  (C), A		                  ; // SELECT THE DESIRED REGISTER
+
+  __endasm;
+  // clang-format on
+}
+
+void enableTmsInterrupts() {
+  if (vdaDev.devType != VDADEV_TMS)
+    return;
+
+  // clang-format off
+  __asm
+	  LD    A, (_tmsCfg + 7)
+    SET	  TMSINTEN, A             ; // RESET INTERRUPT ENABLE BIT
+	  LD	  (_tmsCfg + 7), A
+
+    LD    A, (_tmsCfg + 5)
+    OUT   (C), A
+
+	  NOP
+    NOP
+
+    LD	  A, $81                    ; // SELECT REGISTER 1
+	  OUT	  (C), A		                 ; // SELECT THE DESIRED REGISTER
+
+  __endasm;
+  // clang-format on
+}
+
 void main(MainArguments *pargs) __z88dk_fastcall {
   parseCommandLine(pargs);
 
+  currentBankId = hbGetCurrentBank();
+  hbSysGetBnkInfo(&bnkInfoParams);
+
   initialiseCioAndSio();
+
+  disableTmsInterupts();
 
   flushBuffer();
 
@@ -175,9 +240,11 @@ void main(MainArguments *pargs) __z88dk_fastcall {
   fClose(&configFCB);
 
   uninstallSioHandler();
+  enableTmsInterrupts();
 }
 
 void shutdown() {
   uninstallSioHandler();
+  enableTmsInterrupts();
   exit(1);
 }

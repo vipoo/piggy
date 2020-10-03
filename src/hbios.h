@@ -15,6 +15,23 @@
 #define BF_CIOQUERY (BF_CIO + 5)  /* REPORT DEVICE/LINE CONFIG */
 #define BF_CIODEVICE (BF_CIO + 6) /* REPORT DEVICE INFO */
 
+#define BF_VDA ((uint8_t)0x40)
+#define BF_VDAINI (BF_VDA + 0)  /* INITIALIZE VDU */
+#define BF_VDAQRY (BF_VDA + 1)  /* QUERY VDU STATUS */
+#define BF_VDARES (BF_VDA + 2)  /* SOFT RESET VDU */
+#define BF_VDADEV (BF_VDA + 3)  /* DEVICE INFO */
+#define BF_VDASCS (BF_VDA + 4)  /* SET CURSOR STYLE */
+#define BF_VDASCP (BF_VDA + 5)  /* SET CURSOR POSITION */
+#define BF_VDASAT (BF_VDA + 6)  /* SET CHARACTER ATTRIBUTE */
+#define BF_VDASCO (BF_VDA + 7)  /* SET CHARACTER COLOR */
+#define BF_VDAWRC (BF_VDA + 8)  /* WRITE CHARACTER */
+#define BF_VDAFIL (BF_VDA + 9)  /* FILL */
+#define BF_VDACPY (BF_VDA + 10) /* COPY */
+#define BF_VDASCR (BF_VDA + 11) /* SCROLL */
+#define BF_VDAKST (BF_VDA + 12) /* GET KEYBOARD STATUS */
+#define BF_VDAKFL (BF_VDA + 13) /* FLUSH KEYBOARD BUFFER */
+#define BF_VDAKRD (BF_VDA + 14) /* READ KEYBOARD */
+
 extern void printChar(const char ch) __z88dk_fastcall;
 extern void print(const char *str) __z88dk_fastcall;
 
@@ -51,13 +68,13 @@ extern uint8_t hbSysGetVda(hbiosDriverEntry *pData) __z88dk_fastcall;
 #define VDADEV_VGA ((uint8_t)0x40)  /* ECB VGA3 - HITACHI HD6445 */
 
 typedef struct {
-  uint8_t unitId;
+  uint8_t driver;
   uint8_t devType;
   uint8_t devNumber;
   uint8_t devMode;
   uint8_t devBaseIO;
-} hbiosVdaDev;
-extern uint8_t hbVdaDev(hbiosVdaDev *result) __z88dk_fastcall;
+} hbVdaDevParams;
+extern uint8_t hbVdaDev(hbVdaDevParams *result) __z88dk_fastcall;
 
 typedef struct {
   uint8_t destBank;
@@ -84,12 +101,13 @@ extern uint8_t hbSysIntInfo(hbSysParams *) __z88dk_fastcall;
 extern uint8_t hbSysIntSet(hbSysParams *) __z88dk_fastcall;
 
 typedef struct {
-  uint8_t driver;
   uint8_t functionCode;
+  uint8_t driver;
   void *functionAddress;
   void *driverDataAddress;
 } hbSysGetFunc;
 extern uint8_t hbSysGetCioFn(hbSysGetFunc *) __z88dk_fastcall;
+extern uint8_t hbSysGetVdaFn(hbSysGetFunc *) __z88dk_fastcall;
 extern uint8_t hbDirect(hbSysGetFunc *) __z88dk_fastcall;
 extern uint8_t hbSndReset(uint8_t driver) __z88dk_fastcall;
 

@@ -1,5 +1,5 @@
 
-	PUBLIC	_hbSysGetTimer16, _hbSysGetVda, _hbSysBankCopy, _hbSysIntInfo, _hbSysIntSet, _hbSysGetCioFn, _hbDirect, _hbSysGetBnkInfo, _hbGetCurrentBank, _hbSetCurrentBank
+	PUBLIC	_hbSysGetTimer16, _hbSysGetVda, _hbSysBankCopy, _hbSysIntInfo, _hbSysIntSet, _hbSysGetCioFn, _hbSysGetVdaFn, _hbDirect, _hbSysGetBnkInfo, _hbGetCurrentBank, _hbSetCurrentBank
 
 	SECTION CODE
 
@@ -19,6 +19,37 @@ _hbSysGetCioFn:
 	PUSH	HL
 
 	LD	BC, $F801
+	RST	08
+
+	LD	B, H
+	LD	C, L		; BC = DRIVER FUNCTION ADDRESS
+	POP	HL		; HL = RETURN STRUCT PTR
+
+	LD	(HL), C		; SAVE DRIVER FUNCTION ADDRESS
+	INC	HL
+	LD	(HL), B
+	INC	HL
+
+	LD	(HL), E		; SAVE DRIVER DATA ADDRESS
+	INC	HL
+	LD	(HL), D
+
+	LD	L, A		; SET RETURN CODE
+	POP	IX
+	RET
+
+	;extern uint16_t _hbSysGetVdaFn(hbSysGetFunc*) __z88dk_fastcall;
+
+_hbSysGetVdaFn:
+	PUSH	IX
+
+	LD	D, (HL)		; FUNCTION CODE
+	INC	HL
+	LD	E, (HL)		; DRIVER UNIT
+	INC	HL
+	PUSH	HL
+
+	LD	BC, $F841
 	RST	08
 
 	LD	B, H

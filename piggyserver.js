@@ -151,6 +151,7 @@ function main() {
     rtscts: true
   })
 
+  connection.on('error', (x) => console.log(x))
 
   connection.on('data', data => {
     // console.log(data)
@@ -161,12 +162,15 @@ function main() {
   })
 }
 
-
+function myParseInt(value, dummyPrevious) {
+  // parseInt takes a string and an optional radix
+  return parseInt(value);
+}
 
 program
   .option('-d, --directory <dir>', 'The working directory for files to transfer', 'cwd')
   .requiredOption('-p, --port <port>', 'The serial port to monitor - eg: COM6')
-  .option('-b, --baud <rate>', 'The baud rate for serial comms', 115200 * 2)
+  .option('-b, --baud <rate>', 'The baud rate for serial comms', myParseInt, 115200 * 2)
 
 program.parse(process.argv);
 
